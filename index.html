@@ -107,7 +107,7 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database(), memberRef = db.ref('personnel_68');
         
-        // 更新為 68 艇正確名單 (17號改至左班)
+        // 68 艇名單
         const leftTeam = ['04', '05', '06', '10', '12', '15', '16', '17'], rightTeam = ['03', '07', '08', '09', '11', '13', '14'];
         const allIds = [...leftTeam, ...rightTeam].sort((a,b) => parseInt(a) - parseInt(b));
         const statuses = ['正常', '開船', '駐艇', '值更', '碼巡', '洽公', '幫廚', '補眠', '外宿', '放假班', '輪休', '慰休', '喪假', '事假', '病假', '受訓', '公假', '空員'];
@@ -245,11 +245,14 @@
             }
             
             editMode = 'batch';
-            const nowDay = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const nowDay = now.toISOString().split('T')[0];
+            const nextDay = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
             
             document.getElementById('pre-status-container').className = "block";
             document.getElementById('start-time').value = `${nowDay}T07:00`;
-            document.getElementById('end-time').value = `${nowDay}T07:00`;
+            // 預設批次歸營時間改為隔日 07:00，避免立刻判定逾時
+            document.getElementById('end-time').value = `${nextDay}T07:00`;
             document.getElementById('pre-status-select').value = "輪休";
             document.getElementById('leave-reason').value = "";
             setDeputyCheckboxes(""); 
@@ -261,10 +264,14 @@
 
         function openConfigModal(id, m) {
             currentEditingId = id.toString(); editMode = m; const d = memberStates[id] || {};
-            const nowDay = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const nowDay = now.toISOString().split('T')[0];
+            const nextDay = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
+
             document.getElementById('pre-status-container').className = (m === 'pre' ? "block" : "hidden");
             document.getElementById('start-time').value = (m==='pre' ? d.preStart : d.start) || `${nowDay}T07:00`;
-            document.getElementById('end-time').value = (m==='pre' ? d.preEnd : d.end) || `${nowDay}T07:00`;
+            // 預設個別歸營時間改為隔日 07:00，避免立刻判定逾時
+            document.getElementById('end-time').value = (m==='pre' ? d.preEnd : d.end) || `${nextDay}T07:00`;
             document.getElementById('pre-status-select').value = d.preStatus || "輪休";
             document.getElementById('leave-reason').value = (m==='pre' ? d.preReason : d.reason) || "";
             
@@ -287,6 +294,14 @@
             const d = getSelectedDeputies(); 
             const ps = document.getElementById('pre-status-select').value;
             const r = document.getElementById('leave-reason').value;
+
+            // 防呆警告：檢查結束時間是否早於現在時間
+            const endTimeMs = new Date(e).getTime();
+            if (endTimeMs <= new Date().getTime()) {
+                if(!confirm("⚠️ 警告：你設定的「結束/歸營時間」已經過了！\n這會導致系統一存檔就瞬間自動收假跳回「正常」。\n確定要強制儲存嗎？")) {
+                    return; // 使用者按取消則中止儲存，留在設定畫面
+                }
+            }
 
             if (editMode === 'batch') {
                 selectedBatchIds.forEach(id => {
