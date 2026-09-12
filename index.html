@@ -64,8 +64,8 @@
             <div class="space-y-4">
                 <div id="pre-status-container" class="hidden">
                     <label class="block text-slate-400 mb-1">預放種類</label>
-                    <select id="pre-status-select" onchange="toggleReasonField()" class="w-full bg-slate-900 rounded-lg p-2 text-white outline-none">
-                        <option value="輪休">輪休</option><option value="預放">預放</option><option value="慰休">慰休</option><option value="受訓">受訓</option><option value="公假">公假</option><option value="喪假">喪假</option><option value="事假">事假</option><option value="病假">病假</option>
+                    <select id="pre-status-select" onchange="onStatusSelectChange()" class="w-full bg-slate-900 rounded-lg p-2 text-white outline-none">
+                        <option value="輪休">輪休</option><option value="慰休">慰休</option><option value="受訓">受訓</option><option value="公假">公假</option><option value="喪假">喪假</option><option value="事假">事假</option><option value="病假">病假</option>
                     </select>
                 </div>
                 <div id="reason-container">
@@ -107,7 +107,6 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database(), memberRef = db.ref('personnel_68');
         
-        // 68 艇名單
         const leftTeam = ['04', '05', '06', '10', '12', '15', '16', '17'], rightTeam = ['03', '07', '08', '09', '11', '13', '14'];
         const allIds = [...leftTeam, ...rightTeam].sort((a,b) => parseInt(a) - parseInt(b));
         const statuses = ['正常', '開船', '駐艇', '值更', '碼巡', '洽公', '幫廚', '補眠', '外宿', '放假班', '輪休', '慰休', '喪假', '事假', '病假', '受訓', '公假', '空員'];
@@ -179,6 +178,26 @@
             return (Math.abs(Math.round((target - base) / 86400000)) % 2 === 0) ? "左" : "右";
         }
 
+        function updateDefaultTimesByStatus(status) {
+            const nowDay = new Date().toISOString().split('T')[0];
+            const startTimeInput = document.getElementById('start-time');
+            const endTimeInput = document.getElementById('end-time');
+
+            if (status === '輪休' || status === '慰休') {
+                startTimeInput.value = `${nowDay}T17:00`;
+                endTimeInput.value = `${nowDay}T17:00`;
+            } else {
+                startTimeInput.value = `${nowDay}T07:00`;
+                endTimeInput.value = `${nowDay}T07:00`;
+            }
+        }
+
+        function onStatusSelectChange() {
+            toggleReasonField();
+            const status = document.getElementById('pre-status-select').value;
+            updateDefaultTimesByStatus(status);
+        }
+
         function toggleReasonField() {
             const currentStatus = (editMode === 'pre' || editMode === 'batch') ? document.getElementById('pre-status-select').value : (memberStates[currentEditingId]?.status || '正常');
             document.getElementById('reason-container').style.display = (currentStatus === '輪休' || currentStatus === '慰休') ? 'none' : 'block';
@@ -245,16 +264,11 @@
             }
             
             editMode = 'batch';
-            const now = new Date();
-            const nowDay = now.toISOString().split('T')[0];
-            const nextDay = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
-            
             document.getElementById('pre-status-container').className = "block";
-            // 預設起始時間改為 17:00
-            document.getElementById('start-time').value = `${nowDay}T17:00`;
-            document.getElementById('end-time').value = `${nextDay}T07:00`;
             document.getElementById('pre-status-select').value = "輪休";
             document.getElementById('leave-reason').value = "";
+            
+            updateDefaultTimesByStatus("輪休");
             setDeputyCheckboxes(""); 
             toggleReasonField();
             
@@ -266,16 +280,22 @@
             currentEditingId = id.toString(); editMode = m; const d = memberStates[id] || {};
             const now = new Date();
             const nowDay = now.toISOString().split('T')[0];
-            const nextDay = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
             document.getElementById('pre-status-container').className = (m === 'pre' ? "block" : "hidden");
-            // 預設起始時間改為 17:00
-            document.getElementById('start-time').value = (m==='pre' ? d.preStart : d.start) || `${nowDay}T17:00`;
-            document.getElementById('end-time').value = (m==='pre' ? d.preEnd : d.end) || `${nextDay}T07:00`;
-            document.getElementById('pre-status-select').value = d.preStatus || "輪休";
-            document.getElementById('leave-reason').value = (m==='pre' ? d.preReason : d.reason) || "";
             
-            setDeputyCheckboxes((m === 'pre' ? d.preDeputy : d.deputy) || "");
+            if (m === 'pre') {
+                const defaultStatus = d.preStatus || "輪休";
+                document.getElementById('pre-status-select').value = defaultStatus;
+                document.getElementById('start-time').value = d.preStart || `${nowDay}T${defaultStatus === '輪休' || defaultStatus === '慰休' ? '17:00' : '07:00'}`;
+                document.getElementById('end-time').value = d.preEnd || `${nowDay}T${defaultStatus === '輪休' || defaultStatus === '慰休' ? '17:00' : '07:00'}`;
+                document.getElementById('leave-reason').value = d.preReason || "";
+                setDeputyCheckboxes(d.preDeputy || "");
+            } else {
+                document.getElementById('start-time').value = d.start || `${nowDay}T07:00`;
+                document.getElementById('end-time').value = d.end || `${nowDay}T07:00`;
+                document.getElementById('leave-reason').value = d.reason || "";
+                setDeputyCheckboxes(d.deputy || "");
+            }
             
             toggleReasonField();
             document.getElementById('modal-title').textContent = (m === 'pre' ? `預放設定 - ${id}號` : `詳情設定 - ${id}號`);
@@ -285,7 +305,18 @@
 
         function handleStatusClick(id, s) {
             memberRef.child(id).update({ status: s });
-            if (['輪休', '慰休', '喪假', '事假', '病假', '受訓', '公假'].includes(s)) openConfigModal(id, 'leave');
+            if (['輪休', '慰休', '喪假', '事假', '病假', '受訓', '公假'].includes(s)) {
+                currentEditingId = id.toString();
+                editMode = 'leave';
+                const nowDay = new Date().toISOString().split('T')[0];
+                const defaultTime = (s === '輪休' || s === '慰休') ? '17:00' : '07:00';
+                
+                memberRef.child(id).update({
+                    start: `${nowDay}T${defaultTime}`,
+                    end: `${nowDay}T${defaultTime}`
+                });
+                openConfigModal(id, 'leave');
+            }
         }
 
         function saveModal() {
