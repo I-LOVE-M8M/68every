@@ -105,10 +105,9 @@
           measurementId: "G-63MN9SKYKL"
         };
         firebase.initializeApp(firebaseConfig);
-        // 更改為 personnel_68 以隔離資料庫
         const db = firebase.database(), memberRef = db.ref('personnel_68');
-        // 更新為 68 艇名單
-        const leftTeam = ['04', '05', '10', '12', '15'], rightTeam = ['03', '08', '09', '11', '13', '14'];
+        // 更新為包含 06, 07, 16, 17 的名單
+        const leftTeam = ['04', '05', '06', '10', '12', '15', '16'], rightTeam = ['03', '07', '08', '09', '11', '13', '14', '17'];
         const allIds = [...leftTeam, ...rightTeam].sort((a,b) => parseInt(a) - parseInt(b));
         const statuses = ['正常', '開船', '駐艇', '值更', '碼巡', '洽公', '幫廚', '補眠', '外宿', '放假班', '輪休', '慰休', '喪假', '事假', '病假', '受訓', '公假', '空員'];
         let memberStates = {}, currentEditingId = null, editMode = ""; 
@@ -127,7 +126,6 @@
             return new Date(str.replace(/-/g, '/').replace('T', ' ')).getTime();
         }
 
-        // 智慧時間轉換 (時間到自動變真放假、歸營自動變正常)
         function smartSyncPersonnel(states) {
             const now = new Date().getTime();
             Object.keys(states).forEach(id => {
@@ -135,7 +133,6 @@
                 const preStartT = parseToTime(d.preStart);
                 const mainEndT = parseToTime(d.end);
                 
-                // 預防時間到了 -> 自動轉成真正的放假 (輪休等)
                 if (d.preLeave && preStartT > 0 && now >= preStartT) {
                     memberRef.child(id).update({ 
                         status: d.preStatus || '輪休', 
@@ -146,7 +143,6 @@
                         preLeave: false, preStart: '', preEnd: '', preDeputy: '', preStatus: '', preReason: '' 
                     });
                 } 
-                // 歸營時間到了 -> 自動跳回正常
                 else if (d.status !== '正常' && d.status !== '空員' && mainEndT > 0 && now >= mainEndT) {
                     memberRef.child(id).update({ 
                         status: '正常', start: '', end: '', deputy: '', reason: '' 
@@ -155,7 +151,6 @@
             });
         }
 
-        // 設定每 30 秒自動檢查一次時間，觸發自動轉換
         setInterval(() => {
             if(Object.keys(memberStates).length > 0) {
                 smartSyncPersonnel(memberStates);
@@ -178,7 +173,6 @@
             closeModal();
         }
 
-        // 判斷左右班
         function getDutyByDate(dateStr) {
             const base = new Date('2026/05/05 00:00:00'), target = new Date(dateStr.split('T')[0].replace(/-/g, '/') + ' 00:00:00');
             return (Math.abs(Math.round((target - base) / 86400000)) % 2 === 0) ? "左" : "右";
