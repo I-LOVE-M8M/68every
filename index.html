@@ -65,7 +65,7 @@
                 <div id="pre-status-container" class="hidden">
                     <label class="block text-slate-400 mb-1">預放種類</label>
                     <select id="pre-status-select" onchange="toggleReasonField()" class="w-full bg-slate-900 rounded-lg p-2 text-white outline-none">
-                        <option value="輪休">輪休</option><option value="預放">預放</option><option value="慰休">慰休</option><option value="受訓">受訓</option><option value="公假">公假</option><option value="喪假">喪假</option><option value="事假">事假</option><option value="病假">病假</option>
+                        <option value="輪休">輪休</option><option value="慰休">慰休</option><option value="受訓">受訓</option><option value="公假">公假</option><option value="喪假">喪假</option><option value="事假">事假</option><option value="病假">病假</option>
                     </select>
                 </div>
                 <div id="reason-container">
@@ -247,12 +247,11 @@
             editMode = 'batch';
             const now = new Date();
             const nowDay = now.toISOString().split('T')[0];
-            const nextDay = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
             
             document.getElementById('pre-status-container').className = "block";
-            // 預設起始時間改為 17:00
             document.getElementById('start-time').value = `${nowDay}T17:00`;
-            document.getElementById('end-time').value = `${nextDay}T07:00`;
+            // 結束時間改為同日的 17:00
+            document.getElementById('end-time').value = `${nowDay}T17:00`;
             document.getElementById('pre-status-select').value = "輪休";
             document.getElementById('leave-reason').value = "";
             setDeputyCheckboxes(""); 
@@ -266,12 +265,11 @@
             currentEditingId = id.toString(); editMode = m; const d = memberStates[id] || {};
             const now = new Date();
             const nowDay = now.toISOString().split('T')[0];
-            const nextDay = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
             document.getElementById('pre-status-container').className = (m === 'pre' ? "block" : "hidden");
-            // 預設起始時間改為 17:00
             document.getElementById('start-time').value = (m==='pre' ? d.preStart : d.start) || `${nowDay}T17:00`;
-            document.getElementById('end-time').value = (m==='pre' ? d.preEnd : d.end) || `${nextDay}T07:00`;
+            // 結束時間改為同日的 17:00
+            document.getElementById('end-time').value = (m==='pre' ? d.preEnd : d.end) || `${nowDay}T17:00`;
             document.getElementById('pre-status-select').value = d.preStatus || "輪休";
             document.getElementById('leave-reason').value = (m==='pre' ? d.preReason : d.reason) || "";
             
