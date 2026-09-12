@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智慧伙食與動態管理系統 - 68艇</title>
+    <title>智慧伙食與動態管理系統 - 68</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
@@ -35,13 +35,13 @@
                         <div class="text-[9px] text-slate-400 font-bold flex items-center gap-1">🌇 日落：<span id="sunset-time" class="text-rose-400">讀取中</span></div>
                         <a href="https://www.cwa.gov.tw/V8/C/M/tide.html?NSeaID=NSea06" target="_blank" class="text-[8px] bg-slate-700 px-2 py-0.5 rounded text-slate-300 border border-slate-600">⚓ 高雄港潮汐表</a>
                     </div>
-                    <div class="text-[11px] font-bold text-slate-300 italic pt-1">PERSONNEL & MEAL OPS - 68艇</div>
+                    <div class="text-[11px] font-bold text-slate-300 italic pt-1">PERSONNEL & MEAL OPS - 68</div>
                 </div>
                 
                 <div class="flex gap-1.5 items-center">
                     <select id="week-select" class="bg-slate-700 text-[10px] px-1.5 py-2 rounded-lg font-bold border border-slate-600 text-amber-400 outline-none cursor-pointer">
-                        <option value="this">本週伙食</option>
-                        <option value="next">下週伙食 ➔</option>
+                        <option value="this">本週便當</option>
+                        <option value="next">下週便當 ➔</option>
                     </select>
                     <button onclick="openBatchModal()" class="bg-purple-600 text-[10px] px-2 py-2 rounded-lg font-bold shadow-lg">⚡ 批次預放</button>
                     <button onclick="copyMealReport()" class="bg-blue-600 text-[10px] px-2 py-2 rounded-lg font-bold shadow-lg">📋 伙食</button>
@@ -436,7 +436,7 @@
                     {n: "週日早餐", t: `${dates.sun}T07:00`, m: "早"}, {n: "週日中餐", t: `${dates.sun}T11:00`, m: "中"}, {n: "週日晚餐", t: `${dates.sun}T17:00`, m: "晚"},
                     {n: "週一早餐", t: `${dates.mon}T07:00`, m: "早"}
                 ];
-                let reportText = "68艇伙食統計表\n\n";
+                let reportText = "68艇\n\n";
                 times.forEach(tm => {
                     const targetT = parseToTime(tm.t), dutyTeam = getDutyByDate(tm.t);
                     const eaters = allIds.filter(id => {
@@ -473,7 +473,7 @@
         }
 
         function copyStatusReport() {
-            let text = "68艇人員動態回報\n";
+            let text = "68艇\n";
             ['受訓', '公假', '外宿', '放假班', '輪休', '慰休', '喪假', '事假', '病假'].forEach(s => {
                 const f = allIds.filter(id => (memberStates[id]?.status || '正常') === s);
                 if (f.length > 0) text += `${s} (${f.length}員)：${f.join('、')}\n`;
