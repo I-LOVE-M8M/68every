@@ -183,7 +183,8 @@
             const startTimeInput = document.getElementById('start-time');
             const endTimeInput = document.getElementById('end-time');
 
-            if (status === '輪休' || status === '慰休') {
+            // 只有輪休預設 17:00，慰休與其他皆為 07:00
+            if (status === '輪休') {
                 startTimeInput.value = `${nowDay}T17:00`;
                 endTimeInput.value = `${nowDay}T17:00`;
             } else {
@@ -286,8 +287,9 @@
             if (m === 'pre') {
                 const defaultStatus = d.preStatus || "輪休";
                 document.getElementById('pre-status-select').value = defaultStatus;
-                document.getElementById('start-time').value = d.preStart || `${nowDay}T${defaultStatus === '輪休' || defaultStatus === '慰休' ? '17:00' : '07:00'}`;
-                document.getElementById('end-time').value = d.preEnd || `${nowDay}T${defaultStatus === '輪休' || defaultStatus === '慰休' ? '17:00' : '07:00'}`;
+                const timeStr = defaultStatus === '輪休' ? '17:00' : '07:00';
+                document.getElementById('start-time').value = d.preStart || `${nowDay}T${timeStr}`;
+                document.getElementById('end-time').value = d.preEnd || `${nowDay}T${timeStr}`;
                 document.getElementById('leave-reason').value = d.preReason || "";
                 setDeputyCheckboxes(d.preDeputy || "");
             } else {
@@ -309,7 +311,7 @@
                 currentEditingId = id.toString();
                 editMode = 'leave';
                 const nowDay = new Date().toISOString().split('T')[0];
-                const defaultTime = (s === '輪休' || s === '慰休') ? '17:00' : '07:00';
+                const defaultTime = (s === '輪休') ? '17:00' : '07:00';
                 
                 memberRef.child(id).update({
                     start: `${nowDay}T${defaultTime}`,
