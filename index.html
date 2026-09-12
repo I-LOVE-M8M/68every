@@ -178,29 +178,9 @@
             return (Math.abs(Math.round((target - base) / 86400000)) % 2 === 0) ? "左" : "右";
         }
 
-        function updateDefaultTimesByStatus(status) {
-            const nowDay = new Date().toISOString().split('T')[0];
-            const startTimeInput = document.getElementById('start-time');
-            const endTimeInput = document.getElementById('end-time');
-
-            if (status === '輪休') {
-                startTimeInput.value = `${nowDay}T17:00`;
-                endTimeInput.value = `${nowDay}T17:00`;
-            } else {
-                startTimeInput.value = `${nowDay}T07:00`;
-                endTimeInput.value = `${nowDay}T07:00`;
-            }
-        }
-
-        function onStatusSelectChange() {
-            toggleReasonField();
-            const status = document.getElementById('pre-status-select').value;
-            updateDefaultTimesByStatus(status);
-        }
-
-        function toggleReasonField() {
-            const currentStatus = (editMode === 'pre' || editMode === 'batch') ? document.getElementById('pre-status-select').value : (memberStates[currentEditingId]?.status || '正常');
-            document.getElementById('reason-container').style.display = (currentStatus === '輪休' || currentStatus === '慰休') ? 'none' : 'block';
+        function toggleReasonFieldExplicit(status) {
+            const isRestOrComfort = (status === '輪休' || status === '慰休');
+            document.getElementById('reason-container').style.display = isRestOrComfort ? 'none' : 'block';
         }
 
         function getTargetDates() {
@@ -264,24 +244,28 @@
             }
             
             editMode = 'batch';
+            const now = new Date();
+            const nowDay = now.toISOString().split('T')[0];
             document.getElementById('pre-status-container').className = "block";
             document.getElementById('pre-status-select').value = "輪休";
             document.getElementById('leave-reason').value = "";
             
-            updateDefaultTimesByStatus("輪休");
+            document.getElementById('start-time').value = `${nowDay}T17:00`;
+            document.getElementById('end-time').value = `${nowDay}T17:00`;
             setDeputyCheckboxes(""); 
-            toggleReasonField();
+            toggleReasonFieldExplicit("輪休");
             
             document.getElementById('modal-title').textContent = `批次設定 (${selectedBatchIds.join(', ')})`;
             document.getElementById('modal').style.display = 'flex';
         }
 
-        function openConfigModal(id, m) {
+        function openConfigModal(id, m, explicitStatus = null) {
             currentEditingId = id.toString(); 
             editMode = m; 
             const d = memberStates[id] || {};
             const now = new Date();
             const nowDay = now.toISOString().split('T')[0];
+            const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
             document.getElementById('pre-status-container').className = (m === 'pre' ? "block" : "hidden");
             
@@ -293,36 +277,71 @@
                 document.getElementById('end-time').value = d.preEnd || `${nowDay}T${timeStr}`;
                 document.getElementById('leave-reason').value = d.preReason || "";
                 setDeputyCheckboxes(d.preDeputy || "");
+                toggleReasonFieldExplicit(defaultStatus);
             } else {
-                // 一般假別設定：根據目前資料庫的狀態決定時間
-                const currentStatus = d.status || "正常";
-                const timeStr = currentStatus === '輪休' ? '17:00' : '07:00';
+                const currentStatus = explicitStatus || d.status || "正常";
+                // 如果當前時間已經過了 07:00，預設結束時間給「明天」07:00，避免被秒收假
+                const defaultEndDate = (currentStatus !== '輪休' && now.getHours() >= 7) ? tomorrow : nowDay;
+                const timeStr = (currentStatus === '輪休') ? '17:00' : '07:00';
+
                 document.getElementById('start-time').value = d.start || `${nowDay}T${timeStr}`;
-                document.getElementById('end-time').value = d.end || `${nowDay}T${timeStr}`;
+                document.getElementById('end-time').value = d.end || `${defaultEndDate}T${timeStr}`;
                 document.getElementById('leave-reason').value = d.reason || "";
                 setDeputyCheckboxes(d.deputy || "");
+                toggleReasonFieldExplicit(currentStatus);
             }
             
-            toggleReasonField();
-            document.getElementById('modal-title').textContent = (m === 'pre' ? `預放設定 - ${id}號` : `詳情設定 - ${id}號 (${d.status || ''})`);
+            document.getElementById('modal-title').textContent = (m === 'pre' ? `預放設定 - ${id}號` : `詳情設定 - ${id}號 (${explicitStatus || d.status || ''})`);
             document.getElementById('modal').style.display = 'flex';
         }
+
+        function onStatusSelectChange() {
+            const status = document.getElementById('pre-status-select').value;
+            const now = new Date();
+            const nowDay = now.toISOString().split('T')[0];
+            const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
+            const defaultEndDate = (status !== '輪休' && now.getHours() >= 7) ? tomorrow : nowDay;
+            const timeStr = (status === '輪休') ? '17:00' : '07:00';
+
+            document.getElementById('start-time').value = `${nowDay}T${timeStr}`;
+            document.getElementById('end-time').value = `${defaultEndDate}T${timeStr}`;
+            toggleReasonFieldExplicit(status);
+        }
+
         function closeModal() { document.getElementById('modal').style.display = 'none'; }
 
         function handleStatusClick(id, s) {
-            memberRef.child(id).update({ status: s });
-            if (['輪休', '慰休', '喪假', '事假', '病假', '受訓', '公假'].includes(s)) {
-                currentEditingId = id.toString();
-                editMode = 'leave';
-                const nowDay = new Date().toISOString().split('T')[0];
+            const leaveList = ['輪休', '慰休', '喪假', '事假', '病假', '受訓', '公假'];
+            const now = new Date();
+            const nowDay = now.toISOString().split('T')[0];
+            const tomorrow = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
+            
+            if (leaveList.includes(s)) {
                 const defaultTime = (s === '輪休') ? '17:00' : '07:00';
-                
-                // 立即更新資料庫預設起訖時間，確保點下去就生效
+                const defaultEndDate = (s !== '輪休' && now.getHours() >= 7) ? tomorrow : nowDay;
+
                 memberRef.child(id).update({
+                    status: s,
                     start: `${nowDay}T${defaultTime}`,
-                    end: `${nowDay}T${defaultTime}`
+                    end: `${defaultEndDate}T${defaultTime}`
+                }, (error) => {
+                    if (!error) {
+                        if (!memberStates[id]) memberStates[id] = {};
+                        memberStates[id].status = s;
+                        memberStates[id].start = `${nowDay}T${defaultTime}`;
+                        memberStates[id].end = `${defaultEndDate}T${defaultTime}`;
+                        openConfigModal(id, 'leave', s);
+                    }
                 });
-                openConfigModal(id, 'leave');
+            } else {
+                memberRef.child(id).update({ status: s, start: '', end: '', deputy: '', reason: '' }, (error) => {
+                    if (!error) {
+                        if (!memberStates[id]) memberStates[id] = {};
+                        memberStates[id].status = s;
+                        memberStates[id].start = '';
+                        memberStates[id].end = '';
+                    }
+                });
             }
         }
 
@@ -370,8 +389,11 @@
 
             allIds.forEach(id => {
                 const d = memberStates[id]; if(!d) return;
-                document.getElementById(`tag-${id}`).textContent = d.status;
-                document.getElementById(`tag-${id}`).className = `px-2 py-0.5 rounded text-[9px] font-bold bg-${d.status} text-white`;
+                const tagEl = document.getElementById(`tag-${id}`);
+                if (tagEl) {
+                    tagEl.textContent = d.status || '正常';
+                    tagEl.className = `px-2 py-0.5 rounded text-[9px] font-bold bg-${d.status || '正常'} text-white`;
+                }
                 
                 let info = "";
                 if(d.start && d.end) {
@@ -383,18 +405,27 @@
                     info += `[預:${d.preStart.slice(5,16).replace('T',' ')} ~ ${d.preEnd.slice(5,16).replace('T',' ')}]`;
                     if (d.preDeputy) info += ` <span class="text-indigo-400">預代:${d.preDeputy}</span>`;
                 }
-                document.getElementById(`detail-${id}`).innerHTML = info;
+                const detailEl = document.getElementById(`detail-${id}`);
+                if (detailEl) detailEl.innerHTML = info;
 
-                document.getElementById(`pre-${id}`).className = d.preLeave ? "text-[9px] px-2 py-1 rounded pre-leave-active font-bold" : "text-[9px] px-2 py-1 rounded border border-slate-600 text-slate-500";
+                const preBtn = document.getElementById(`pre-${id}`);
+                if (preBtn) {
+                    preBtn.className = d.preLeave ? "text-[9px] px-2 py-1 rounded pre-leave-active font-bold" : "text-[9px] px-2 py-1 rounded border border-slate-600 text-slate-500";
+                }
+
                 document.querySelectorAll(`[id^="btn-${id}-"]`).forEach(b => b.classList.remove('active-status'));
-                const btn = document.getElementById(`btn-${id}-${d.status}`); if(btn) btn.classList.add('active-status');
+                const btn = document.getElementById(`btn-${id}-${d.status || '正常'}`); 
+                if(btn) btn.classList.add('active-status');
             });
             
-            const board = document.getElementById('stat-board'); board.innerHTML = "";
-            statuses.forEach(s => {
-                const f = allIds.filter(id => memberStates[id]?.status === s);
-                if(f.length>0) board.innerHTML += `<div class="bg-slate-800 p-2 rounded-lg mb-1 flex justify-between"><span>${s}</span><span class="text-amber-500 font-bold">${f.join(',')}</span></div>`;
-            });
+            const board = document.getElementById('stat-board'); 
+            if (board) {
+                board.innerHTML = "";
+                statuses.forEach(s => {
+                    const f = allIds.filter(id => (memberStates[id]?.status || '正常') === s);
+                    if(f.length>0) board.innerHTML += `<div class="bg-slate-800 p-2 rounded-lg mb-1 flex justify-between"><span>${s}</span><span class="text-amber-500 font-bold">${f.join(',')}</span></div>`;
+                });
+            }
         });
 
         function copyMealReport() {
@@ -409,7 +440,7 @@
                 times.forEach(tm => {
                     const targetT = parseToTime(tm.t), dutyTeam = getDutyByDate(tm.t);
                     const eaters = allIds.filter(id => {
-                        const d = memberStates[id]; if(!d || d.status === '空員') return false;
+                        const d = memberStates[id]; if(!d || (d.status || '正常') === '空員') return false;
                         
                         const isDeputyNow = allIds.some(oid => {
                             const od = memberStates[oid]; if(!od) return false;
@@ -420,7 +451,7 @@
                                 if (targetT >= parseToTime(od.start) && targetT < parseToTime(od.end)) return true;
                             }
                             if (od.preLeave && od.preStart && od.preEnd && preDepStr.includes(id)) {
-                                if (targetT >= parseToTime(od.preStart) && targetT < parseToTime(od.preEnd)) return true;
+                                if (targetT >= parseTypeTime && targetT < parseToTime(od.preEnd)) return true;
                             }
                             return false;
                         });
@@ -444,7 +475,7 @@
         function copyStatusReport() {
             let text = "68艇人員動態回報\n";
             ['受訓', '公假', '外宿', '放假班', '輪休', '慰休', '喪假', '事假', '病假'].forEach(s => {
-                const f = allIds.filter(id => memberStates[id]?.status === s);
+                const f = allIds.filter(id => (memberStates[id]?.status || '正常') === s);
                 if (f.length > 0) text += `${s} (${f.length}員)：${f.join('、')}\n`;
             });
             navigator.clipboard.writeText(text).then(() => alert("動態已複製"));
