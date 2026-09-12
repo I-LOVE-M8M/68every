@@ -183,7 +183,6 @@
             const startTimeInput = document.getElementById('start-time');
             const endTimeInput = document.getElementById('end-time');
 
-            // 只有輪休預設 17:00，慰休與其他皆為 07:00
             if (status === '輪休') {
                 startTimeInput.value = `${nowDay}T17:00`;
                 endTimeInput.value = `${nowDay}T17:00`;
@@ -278,7 +277,9 @@
         }
 
         function openConfigModal(id, m) {
-            currentEditingId = id.toString(); editMode = m; const d = memberStates[id] || {};
+            currentEditingId = id.toString(); 
+            editMode = m; 
+            const d = memberStates[id] || {};
             const now = new Date();
             const nowDay = now.toISOString().split('T')[0];
 
@@ -293,14 +294,17 @@
                 document.getElementById('leave-reason').value = d.preReason || "";
                 setDeputyCheckboxes(d.preDeputy || "");
             } else {
-                document.getElementById('start-time').value = d.start || `${nowDay}T07:00`;
-                document.getElementById('end-time').value = d.end || `${nowDay}T07:00`;
+                // 一般假別設定：根據目前資料庫的狀態決定時間
+                const currentStatus = d.status || "正常";
+                const timeStr = currentStatus === '輪休' ? '17:00' : '07:00';
+                document.getElementById('start-time').value = d.start || `${nowDay}T${timeStr}`;
+                document.getElementById('end-time').value = d.end || `${nowDay}T${timeStr}`;
                 document.getElementById('leave-reason').value = d.reason || "";
                 setDeputyCheckboxes(d.deputy || "");
             }
             
             toggleReasonField();
-            document.getElementById('modal-title').textContent = (m === 'pre' ? `預放設定 - ${id}號` : `詳情設定 - ${id}號`);
+            document.getElementById('modal-title').textContent = (m === 'pre' ? `預放設定 - ${id}號` : `詳情設定 - ${id}號 (${d.status || ''})`);
             document.getElementById('modal').style.display = 'flex';
         }
         function closeModal() { document.getElementById('modal').style.display = 'none'; }
@@ -313,6 +317,7 @@
                 const nowDay = new Date().toISOString().split('T')[0];
                 const defaultTime = (s === '輪休') ? '17:00' : '07:00';
                 
+                // 立即更新資料庫預設起訖時間，確保點下去就生效
                 memberRef.child(id).update({
                     start: `${nowDay}T${defaultTime}`,
                     end: `${nowDay}T${defaultTime}`
