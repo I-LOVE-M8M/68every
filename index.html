@@ -250,8 +250,8 @@
             const nextDay = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
             
             document.getElementById('pre-status-container').className = "block";
-            document.getElementById('start-time').value = `${nowDay}T07:00`;
-            // 預設批次歸營時間改為隔日 07:00，避免立刻判定逾時
+            // 預設起始時間改為 17:00
+            document.getElementById('start-time').value = `${nowDay}T17:00`;
             document.getElementById('end-time').value = `${nextDay}T07:00`;
             document.getElementById('pre-status-select').value = "輪休";
             document.getElementById('leave-reason').value = "";
@@ -269,8 +269,8 @@
             const nextDay = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
 
             document.getElementById('pre-status-container').className = (m === 'pre' ? "block" : "hidden");
-            document.getElementById('start-time').value = (m==='pre' ? d.preStart : d.start) || `${nowDay}T07:00`;
-            // 預設個別歸營時間改為隔日 07:00，避免立刻判定逾時
+            // 預設起始時間改為 17:00
+            document.getElementById('start-time').value = (m==='pre' ? d.preStart : d.start) || `${nowDay}T17:00`;
             document.getElementById('end-time').value = (m==='pre' ? d.preEnd : d.end) || `${nextDay}T07:00`;
             document.getElementById('pre-status-select').value = d.preStatus || "輪休";
             document.getElementById('leave-reason').value = (m==='pre' ? d.preReason : d.reason) || "";
@@ -295,11 +295,10 @@
             const ps = document.getElementById('pre-status-select').value;
             const r = document.getElementById('leave-reason').value;
 
-            // 防呆警告：檢查結束時間是否早於現在時間
             const endTimeMs = new Date(e).getTime();
             if (endTimeMs <= new Date().getTime()) {
                 if(!confirm("⚠️ 警告：你設定的「結束/歸營時間」已經過了！\n這會導致系統一存檔就瞬間自動收假跳回「正常」。\n確定要強制儲存嗎？")) {
-                    return; // 使用者按取消則中止儲存，留在設定畫面
+                    return; 
                 }
             }
 
